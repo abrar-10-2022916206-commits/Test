@@ -94,7 +94,7 @@ app.put('/api/tournament/:id', async (req, res) => {
 
 // Connect to MongoDB and Start Server
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:<mpe6AcxuaP0oIr8r>@cluster0.a4015aj.mongodb.net";
+const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@cluster0.a4015aj.mongodb.net";
 
 mongoose.connect(MONGO_URI)
     .then(() => {
