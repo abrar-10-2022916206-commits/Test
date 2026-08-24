@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Login | NPL Season 05</title>
+	<style>
+		:root {
+			--ink: #17212f;
+			--muted: #687486;
+			--line: #dce3ea;
+			--accent: #e85d3f;
+			--accent-dark: #c8472e;
+			--surface: #ffffff;
+			--background: #f3f7fa;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			min-height: 100vh;
+			margin: 0;
+			display: grid;
+			place-items: center;
+			padding: 24px;
+			color: var(--ink);
+			background: linear-gradient(135deg, var(--background), #e8eef4);
+			font-family: Georgia, "Times New Roman", serif;
+		}
+
+		main {
+			width: min(100%, 560px);
+			padding: 42px;
+			background: var(--surface);
+			border: 1px solid rgba(23, 33, 47, 0.08);
+			border-radius: 8px;
+			box-shadow: 0 18px 50px rgba(23, 33, 47, 0.12);
+		}
+
+		.eyebrow {
+			margin: 0 0 10px;
+			color: var(--accent);
+			font: 700 0.75rem/1.2 Arial, sans-serif;
+			letter-spacing: 0.12em;
+			text-transform: uppercase;
+		}
+
+		h1 { margin: 0 0 8px; font-size: clamp(2.2rem, 7vw, 3.4rem); line-height: 1; }
+		.intro { margin: 0 0 28px; color: var(--muted); font: 1rem/1.6 Arial, sans-serif; }
+
+		.role-options {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 12px;
+			margin-bottom: 28px;
+		}
+
+		.role-option {
+			padding: 18px 16px;
+			color: var(--ink);
+			background: #f8fafc;
+			border: 1px solid var(--line);
+			border-radius: 4px;
+			cursor: pointer;
+			font: 700 0.95rem Arial, sans-serif;
+			text-align: left;
+			transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+		}
+
+		.role-option:hover { transform: translateY(-2px); border-color: var(--accent); }
+		.role-option[aria-pressed="true"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+		form { display: grid; gap: 18px; }
+		label { display: grid; gap: 8px; font: 700 0.9rem/1.2 Arial, sans-serif; }
+
+		input {
+			width: 100%;
+			min-height: 48px;
+			padding: 12px 14px;
+			color: var(--ink);
+			background: #fbfcfe;
+			border: 1px solid var(--line);
+			border-radius: 4px;
+			font: 1rem Arial, sans-serif;
+		}
+
+		input:focus { outline: 3px solid rgba(232, 93, 63, 0.2); border-color: var(--accent); }
+		.password-field[hidden] { display: none; }
+
+		button[type="submit"] {
+			min-height: 50px;
+			margin-top: 4px;
+			color: #fff;
+			background: var(--accent);
+			border: 0;
+			border-radius: 4px;
+			cursor: pointer;
+			font: 700 0.95rem Arial, sans-serif;
+		}
+
+		button[type="submit"]:hover { background: var(--accent-dark); }
+		#status { min-height: 1.4em; margin: 4px 0 0; color: var(--accent-dark); font: 0.9rem/1.4 Arial, sans-serif; }
+
+		@media (max-width: 480px) {
+			main { padding: 30px 22px; }
+			.role-options { grid-template-columns: 1fr; }
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<p class="eyebrow">NPL Season 05</p>
+		<h1>Welcome back</h1>
+		<p class="intro">Choose your account type to continue.</p>
+
+		<div class="role-options" aria-label="Choose login type">
+			<button class="role-option" type="button" data-role="Admin" aria-pressed="false">Admin login</button>
+			<button class="role-option" type="button" data-role="User" aria-pressed="true">User login</button>
+		</div>
+
+		<form id="login-form">
+			<label for="tournament-id">Tournament ID</label>
+			<input id="tournament-id" name="tournamentId" type="text" autocomplete="off" required>
+
+			<div class="password-field" hidden>
+				<label for="password">Password</label>
+				<input id="password" name="password" type="password" autocomplete="current-password">
+			</div>
+
+			<button id="submit-button" type="submit">Login as User</button>
+			<p id="status" role="status"></p>
+		</form>
+	</main>
+
+	<script>
+		const roleButtons = document.querySelectorAll('.role-option');
+		const submitButton = document.getElementById('submit-button');
+		const loginForm = document.getElementById('login-form');
+		const passwordField = document.querySelector('.password-field');
+		const passwordInput = document.getElementById('password');
+		const status = document.getElementById('status');
+		let selectedRole = 'User';
+
+		roleButtons.forEach(function (button) {
+			button.addEventListener('click', function () {
+				selectedRole = button.dataset.role;
+				roleButtons.forEach(function (option) {
+					option.setAttribute('aria-pressed', String(option === button));
+				});
+				const isAdmin = selectedRole === 'Admin';
+				passwordField.hidden = !isAdmin;
+				passwordInput.required = isAdmin;
+				submitButton.textContent = 'Login as ' + selectedRole;
+				status.textContent = '';
+			});
+		});
+
+		loginForm.addEventListener('submit', function (event) {
+			event.preventDefault();
+			status.textContent = selectedRole + ' login is ready to connect.';
+		});
+	</script>
+</body>
+</html>
