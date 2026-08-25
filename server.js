@@ -43,11 +43,15 @@ const upload = multer({
     }
 });
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+if (process.env.CLOUDINARY_URL) {
+    cloudinary.config(process.env.CLOUDINARY_URL);
+} else {
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+    });
+}
 
 function uploadToCloudinary(file, publicId, resourceType) {
     return new Promise((resolve, reject) => {
@@ -194,10 +198,16 @@ app.get('/api/media/:roomId', async (req, res) => {
 
 // Connect to MongoDB and Start Server
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@cluster0.a4015aj.mongodb.net/?appName=Cluster0";
+const hasCloudinaryUrl = Boolean(process.env.CLOUDINARY_URL);
+const hasCloudinaryFields = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET;
+const missingVariables = [
+    !MONGO_URI && 'MONGO_URI',
+    !hasCloudinaryUrl && !hasCloudinaryFields && 'CLOUDINARY_URL (or CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)'
+].filter(Boolean);
 
-if (!MONGO_URI || !process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    throw new Error('MONGO_URI and Cloudinary credentials must be configured in .env');
+if (missingVariables.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingVariables.join(', ')}`);
 }
 
 mongoose.connect(MONGO_URI)
