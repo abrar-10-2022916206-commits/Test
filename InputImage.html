@@ -53,7 +53,7 @@
                 status.textContent = response.ok ? 'Uploaded ' + data.media.originalName : (data.message || 'Upload failed');
                 if (response.ok) sessionStorage.setItem('currentActiveId', roomId);
                 if (response.ok) form.reset();
-            } catch (error) { status.textContent = 'Server connection error.'; }
+            } catch (error) { status.textContent = error.message || 'Server connection error.'; }
         });
     </script>
 </body>

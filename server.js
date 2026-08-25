@@ -43,15 +43,19 @@ const upload = multer({
     }
 });
 
-if (process.env.CLOUDINARY_URL) {
-    cloudinary.config(process.env.CLOUDINARY_URL);
-} else {
-    cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET
-    });
-}
+const cloudinaryConfig = process.env.CLOUDINARY_URL ? (() => {
+    const cloudinaryUrl = new URL(process.env.CLOUDINARY_URL);
+    return {
+        cloud_name: cloudinaryUrl.hostname,
+        api_key: decodeURIComponent(cloudinaryUrl.username),
+        api_secret: decodeURIComponent(cloudinaryUrl.password)
+    };
+})() : {
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+};
+cloudinary.config(cloudinaryConfig);
 
 function uploadToCloudinary(file, publicId, resourceType) {
     return new Promise((resolve, reject) => {
@@ -196,9 +200,16 @@ app.get('/api/media/:roomId', async (req, res) => {
     }
 });
 
+app.use((err, req, res, next) => {
+    if (err instanceof multer.MulterError || err.message === 'Only image and video files are allowed') {
+        return res.status(400).json({ message: err.message });
+    }
+    next(err);
+});
+
 // Connect to MongoDB and Start Server
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@cluster0.a4015aj.mongodb.net/?appName=Cluster0";
+const MONGO_URI = process.env.MONGO_URI;
 const hasCloudinaryUrl = Boolean(process.env.CLOUDINARY_URL);
 const hasCloudinaryFields = process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET;
 const missingVariables = [
