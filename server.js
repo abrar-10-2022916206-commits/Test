@@ -39,7 +39,9 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 100 * 1024 * 1024 },
     fileFilter: (req, file, callback) => {
-        callback(/^(image|video)\//.test(file.mimetype) ? null : new Error('Only image and video files are allowed'));
+        const isImage = /^(image)\//.test(file.mimetype) || /\.(jpg|jpeg|png|gif|webp|bmp|tiff)$/i.test(file.originalname);
+        const isVideo = /^(video)\//.test(file.mimetype) || /\.(mp4|webm|mov|avi|mkv)$/i.test(file.originalname);
+        callback(isImage || isVideo ? null : new Error('Only image and video files are allowed'));
     }
 });
 
@@ -50,10 +52,11 @@ const cloudinaryConfig = {
 };
 cloudinary.config(cloudinaryConfig);
 
-function uploadToCloudinary(file, publicId, resourceType) {
+function uploadToCloudinary(file, folder, mediaNumber, resourceType) {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream({
-            public_id: publicId,
+            folder,
+            public_id: String(mediaNumber),
             resource_type: resourceType,
             overwrite: true,
             invalidate: true
@@ -144,9 +147,11 @@ app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
         }
 
         const mediaNumber = Number(match[1]);
-        const resourceType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
-        const publicId = `npl-season-05/${req.params.roomId}/${mediaNumber}`;
-        const result = await uploadToCloudinary(req.file, publicId, resourceType);
+        const resourceType = req.file.mimetype.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv)$/i.test(req.file.originalname)
+            ? 'video'
+            : 'image';
+        const folder = `npl-season-05/${req.params.roomId}`;
+        const result = await uploadToCloudinary(req.file, folder, mediaNumber, resourceType);
         const media = await Media.findOneAndUpdate(
             { roomId: req.params.roomId, mediaNumber },
             {
@@ -163,8 +168,8 @@ app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
 
         res.status(201).json({ media });
     } catch (err) {
-        console.error('Media upload error:', err);
-        res.status(500).json({ message: 'Media upload failed' });
+        console.error('Media upload error:', err.message);
+        res.status(500).json({ message: err.message || 'Media upload failed' });
     }
 });
 
