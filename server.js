@@ -147,7 +147,7 @@ app.get('/api/tournament/:id/media/:number', async (req, res) => {
 
 // Connect to MongoDB and Start Server
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@cluster0.a4015aj.mongodb.net/?appName=Cluster0";
 
 if (!MONGO_URI) {
     throw new Error('MONGO_URI is missing from .env');
