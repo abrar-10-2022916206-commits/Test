@@ -37,13 +37,19 @@
         const roomInput = document.getElementById('room-id');
         const form = document.getElementById('upload-form');
         const status = document.getElementById('status');
+        const fileInput = document.getElementById('media-file');
         roomInput.value = sessionStorage.getItem('currentActiveId') || '';
+
+        fileInput.addEventListener('change', function () {
+            status.textContent = fileInput.files[0] ? 'Selected: ' + fileInput.files[0].name : 'Choose an image or video file.';
+        });
 
         form.addEventListener('submit', async function (event) {
             event.preventDefault();
-            const file = document.getElementById('media-file').files[0];
+            const file = fileInput.files[0];
             const roomId = roomInput.value.trim();
             if (!roomId) { status.textContent = 'Enter a Room ID first.'; return; }
+            if (!file) { status.textContent = 'Choose a file before clicking Upload media.'; fileInput.focus(); return; }
             const formData = new FormData();
             formData.append('media', file);
             status.textContent = 'Uploading...';
