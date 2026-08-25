@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/abrar-10-2022916206-commits/Test#readme",
   "dependencies": {
+    "cloudinary": "^2.7.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

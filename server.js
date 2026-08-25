@@ -21,6 +21,17 @@ const tournamentSchema = new mongoose.Schema({
 
 const Tournament = mongoose.model('Tournament', tournamentSchema);
 
+const mediaSchema = new mongoose.Schema({
+    tournamentId: { type: String, required: true },
+    number: { type: Number, required: true, min: 1 },
+    url: { type: String, required: true },
+    resourceType: { type: String, required: true, enum: ['image', 'video', 'raw'] },
+    originalName: { type: String, required: true }
+}, { timestamps: true });
+
+mediaSchema.index({ tournamentId: 1, number: 1 }, { unique: true });
+const Media = mongoose.model('Media', mediaSchema);
+
 // --- API ENDPOINTS ---
 
 // 1. Register Tournament
@@ -92,9 +103,55 @@ app.put('/api/tournament/:id', async (req, res) => {
     }
 });
 
+// Save or replace a numbered Cloudinary asset for a tournament.
+app.put('/api/tournament/:id/media/:number', async (req, res) => {
+    try {
+        const number = Number(req.params.number);
+        const { url, resourceType, originalName } = req.body;
+        if (!Number.isInteger(number) || number < 1 || !url || !originalName) {
+            return res.status(400).json({ message: 'A positive number, URL, and filename are required' });
+        }
+        const filenamePattern = new RegExp(`^${number}\\.(png|jpe?g|gif|webp|mp4|webm|mov|mp3|wav)$`, 'i');
+        if (!filenamePattern.test(path.basename(originalName))) {
+            return res.status(400).json({ message: `Filename must be ${number}.png, ${number}.mp3, or another supported media extension` });
+        }
+        if (!['image', 'video', 'raw'].includes(resourceType)) {
+            return res.status(400).json({ message: 'Unsupported media type' });
+        }
+        const tournament = await Tournament.findOne({ tournamentId: req.params.id });
+        if (!tournament) return res.status(404).json({ message: 'Tournament ID not found' });
+        const media = await Media.findOneAndUpdate(
+            { tournamentId: req.params.id, number },
+            { url, resourceType, originalName },
+            { upsert: true, new: true, runValidators: true }
+        );
+        res.json(media);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while saving media' });
+    }
+});
+
+// Find a numbered asset in a tournament.
+app.get('/api/tournament/:id/media/:number', async (req, res) => {
+    try {
+        const media = await Media.findOne({
+            tournamentId: req.params.id,
+            number: Number(req.params.number)
+        }).lean();
+        if (!media) return res.status(404).json({ message: 'No media found for that number' });
+        res.json(media);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error while loading media' });
+    }
+});
+
 // Connect to MongoDB and Start Server
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@cluster0.a4015aj.mongodb.net";
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+    throw new Error('MONGO_URI is missing from .env');
+}
 
 mongoose.connect(MONGO_URI)
     .then(() => {

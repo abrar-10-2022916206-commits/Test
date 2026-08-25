@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | NPL Season 05</title>
+    <title>Login</title>
     <style>
         :root {
             --ink: #17212f;
@@ -220,7 +220,7 @@
 
                 if (response.ok) {
                     sessionStorage.setItem('currentActiveId', tournamentId);
-                    window.location.href = selectedRole === 'Admin' ? 'infoTransfer.html' : 'Showing.html';
+                    window.location.href = selectedRole === 'Admin' ? 'InputImage.html' : 'Showing.html';
                 } else {
                     status.textContent = data.message;
                 }
