@@ -65,6 +65,25 @@ function uploadToCloudinary(file, folder, mediaNumber, resourceType) {
     });
 }
 
+async function saveMedia(roomId, file) {
+    const match = file.originalname.match(/^(\d+)\.[^.]+$/i);
+    if (!match) throw new Error('Filename must be a number, for example 12.png or 12.mp4');
+
+    const mediaNumber = Number(match[1]);
+    const resourceType = file.mimetype.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv)$/i.test(file.originalname)
+        ? 'video'
+        : 'image';
+    const result = await uploadToCloudinary(file, `npl-season-05/${roomId}`, mediaNumber, resourceType);
+    console.log(`Cloudinary upload complete: ${result.public_id}`);
+    const media = await Media.findOneAndUpdate(
+        { roomId, mediaNumber },
+        { roomId, mediaNumber, publicId: result.public_id, resourceType, format: result.format, originalName: file.originalname, url: result.secure_url },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    console.log(`MongoDB media saved: ${mongoose.connection.name}.media (${roomId}/${mediaNumber})`);
+    return media;
+}
+
 // --- API ENDPOINTS ---
 
 // 1. Register Tournament
@@ -145,37 +164,29 @@ app.post('/api/media/:roomId', upload.any(), async (req, res) => {
             return res.status(400).json({ message: 'Choose an image or video file' });
         }
 
-        const match = file.originalname.match(/^(\d+)\.[^.]+$/i);
-        if (!match) {
-            return res.status(400).json({ message: 'Filename must be a number, for example 12.png or 12.mp4' });
-        }
-
-        const mediaNumber = Number(match[1]);
-        const resourceType = file.mimetype.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv)$/i.test(file.originalname)
-            ? 'video'
-            : 'image';
         const roomId = req.params.roomId.trim();
-        const folder = `npl-season-05/${roomId}`;
-        const result = await uploadToCloudinary(file, folder, mediaNumber, resourceType);
-        console.log(`Cloudinary upload complete: ${result.public_id}`);
-        const media = await Media.findOneAndUpdate(
-            { roomId, mediaNumber },
-            {
-                roomId,
-                mediaNumber,
-                publicId: result.public_id,
-                resourceType,
-                format: result.format,
-                originalName: file.originalname,
-                url: result.secure_url
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
-
-        console.log(`MongoDB media saved: ${mongoose.connection.name}.media (${roomId}/${mediaNumber})`);
+        const media = await saveMedia(roomId, file);
         res.status(201).json({ media });
     } catch (err) {
         console.error('Media upload error:', err);
+        res.status(500).json({ message: err.message || 'Media upload failed' });
+    }
+});
+
+app.post('/api/media/:roomId/raw', express.raw({ type: '*/*', limit: '100mb' }), async (req, res) => {
+    try {
+        const originalName = decodeURIComponent(req.headers['x-file-name'] || '');
+        if (!originalName || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+            return res.status(400).json({ message: 'Choose an image or video file' });
+        }
+        const media = await saveMedia(req.params.roomId.trim(), {
+            buffer: req.body,
+            originalname: originalName,
+            mimetype: req.headers['content-type'] || ''
+        });
+        res.status(201).json({ media });
+    } catch (err) {
+        console.error('Raw media upload error:', err.message);
         res.status(500).json({ message: err.message || 'Media upload failed' });
     }
 });
