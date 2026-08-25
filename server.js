@@ -34,7 +34,7 @@ const mediaSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 mediaSchema.index({ roomId: 1, mediaNumber: 1 }, { unique: true });
-const Media = mongoose.model('Media', mediaSchema);
+const Media = mongoose.model('Media', mediaSchema, 'media');
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 100 * 1024 * 1024 },
@@ -153,6 +153,7 @@ app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
         const roomId = req.params.roomId.trim();
         const folder = `npl-season-05/${roomId}`;
         const result = await uploadToCloudinary(req.file, folder, mediaNumber, resourceType);
+        console.log(`Cloudinary upload complete: ${result.public_id}`);
         const media = await Media.findOneAndUpdate(
             { roomId, mediaNumber },
             {
@@ -167,9 +168,10 @@ app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
+        console.log(`MongoDB media saved: ${mongoose.connection.name}.media (${roomId}/${mediaNumber})`);
         res.status(201).json({ media });
     } catch (err) {
-        console.error('Media upload error:', err.message);
+        console.error('Media upload error:', err);
         res.status(500).json({ message: err.message || 'Media upload failed' });
     }
 });
