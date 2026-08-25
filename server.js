@@ -238,6 +238,15 @@ const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@clus
 mongoose.connect(MONGO_URI)
     .then(() => {
         console.log('Connected to MongoDB');
+        return Media.collection.listIndexes().toArray();
+    })
+    .then(async indexes => {
+        const oldIndex = indexes.find(index => index.name === 'tournamentId_1_number_1');
+        if (oldIndex) {
+            await Media.collection.dropIndex(oldIndex.name);
+            console.log('Removed obsolete media index: tournamentId_1_number_1');
+        }
+        await Media.createIndexes();
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     })
     .catch(err => console.error('MongoDB connection error:', err));
