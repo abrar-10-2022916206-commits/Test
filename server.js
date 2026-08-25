@@ -78,7 +78,7 @@ async function saveMedia(roomId, file) {
     const media = await Media.findOneAndUpdate(
         { roomId, mediaNumber },
         { roomId, mediaNumber, publicId: result.public_id, resourceType, format: result.format, originalName: file.originalname, url: result.secure_url },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
     console.log(`MongoDB media saved: ${mongoose.connection.name}.media (${roomId}/${mediaNumber})`);
     return media;
