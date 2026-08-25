@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const { v2: cloudinary } = require('cloudinary');
 require('dotenv').config();
 
 const app = express();
@@ -22,15 +24,42 @@ const tournamentSchema = new mongoose.Schema({
 const Tournament = mongoose.model('Tournament', tournamentSchema);
 
 const mediaSchema = new mongoose.Schema({
-    tournamentId: { type: String, required: true },
-    number: { type: Number, required: true, min: 1 },
-    url: { type: String, required: true },
-    resourceType: { type: String, required: true, enum: ['image', 'video', 'raw'] },
-    originalName: { type: String, required: true }
+    roomId: { type: String, required: true },
+    mediaNumber: { type: Number, required: true },
+    publicId: { type: String, required: true },
+    resourceType: { type: String, enum: ['image', 'video'], required: true },
+    format: { type: String, required: true },
+    originalName: { type: String, required: true },
+    url: { type: String, required: true }
 }, { timestamps: true });
 
-mediaSchema.index({ tournamentId: 1, number: 1 }, { unique: true });
+mediaSchema.index({ roomId: 1, mediaNumber: 1 }, { unique: true });
 const Media = mongoose.model('Media', mediaSchema);
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 100 * 1024 * 1024 },
+    fileFilter: (req, file, callback) => {
+        callback(/^(image|video)\//.test(file.mimetype) ? null : new Error('Only image and video files are allowed'));
+    }
+});
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+function uploadToCloudinary(file, publicId, resourceType) {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({
+            public_id: publicId,
+            resource_type: resourceType,
+            overwrite: true,
+            invalidate: true
+        }, (error, result) => error ? reject(error) : resolve(result));
+        stream.end(file.buffer);
+    });
+}
 
 // --- API ENDPOINTS ---
 
@@ -103,54 +132,72 @@ app.put('/api/tournament/:id', async (req, res) => {
     }
 });
 
-// Save or replace a numbered Cloudinary asset for a tournament.
-app.put('/api/tournament/:id/media/:number', async (req, res) => {
+// 5. Upload or replace numbered room media
+app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
     try {
-        const number = Number(req.params.number);
-        const { url, resourceType, originalName } = req.body;
-        if (!Number.isInteger(number) || number < 1 || !url || !originalName) {
-            return res.status(400).json({ message: 'A positive number, URL, and filename are required' });
+        if (!req.file) return res.status(400).json({ message: 'Choose an image or video file' });
+
+        const match = req.file.originalname.match(/^(\d+)\.[^.]+$/i);
+        if (!match) {
+            return res.status(400).json({ message: 'Filename must be a number, for example 12.png or 12.mp4' });
         }
-        const filenamePattern = new RegExp(`^${number}\\.(png|jpe?g|gif|webp|mp4|webm|mov|mp3|wav)$`, 'i');
-        if (!filenamePattern.test(path.basename(originalName))) {
-            return res.status(400).json({ message: `Filename must be ${number}.png, ${number}.mp3, or another supported media extension` });
-        }
-        if (!['image', 'video', 'raw'].includes(resourceType)) {
-            return res.status(400).json({ message: 'Unsupported media type' });
-        }
-        const tournament = await Tournament.findOne({ tournamentId: req.params.id });
-        if (!tournament) return res.status(404).json({ message: 'Tournament ID not found' });
+
+        const mediaNumber = Number(match[1]);
+        const resourceType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
+        const publicId = `npl-season-05/${req.params.roomId}/${mediaNumber}`;
+        const result = await uploadToCloudinary(req.file, publicId, resourceType);
         const media = await Media.findOneAndUpdate(
-            { tournamentId: req.params.id, number },
-            { url, resourceType, originalName },
-            { upsert: true, new: true, runValidators: true }
+            { roomId: req.params.roomId, mediaNumber },
+            {
+                roomId: req.params.roomId,
+                mediaNumber,
+                publicId: result.public_id,
+                resourceType,
+                format: result.format,
+                originalName: req.file.originalname,
+                url: result.secure_url
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
         );
-        res.json(media);
+
+        res.status(201).json({ media });
     } catch (err) {
-        res.status(500).json({ message: 'Server error while saving media' });
+        console.error('Media upload error:', err);
+        res.status(500).json({ message: 'Media upload failed' });
     }
 });
 
-// Find a numbered asset in a tournament.
-app.get('/api/tournament/:id/media/:number', async (req, res) => {
+// 6. Get one numbered image or video for a room
+app.get('/api/media/:roomId/:mediaNumber', async (req, res) => {
     try {
-        const media = await Media.findOne({
-            tournamentId: req.params.id,
-            number: Number(req.params.number)
-        }).lean();
-        if (!media) return res.status(404).json({ message: 'No media found for that number' });
-        res.json(media);
+        const mediaNumber = Number(req.params.mediaNumber);
+        if (!Number.isInteger(mediaNumber) || mediaNumber < 0) {
+            return res.status(400).json({ message: 'Media number must be a non-negative integer' });
+        }
+
+        const media = await Media.findOne({ roomId: req.params.roomId, mediaNumber }).lean();
+        if (!media) return res.status(404).json({ message: 'No media found for that number in this room' });
+        res.json({ media });
     } catch (err) {
-        res.status(500).json({ message: 'Server error while loading media' });
+        res.status(500).json({ message: 'Media lookup failed' });
+    }
+});
+
+app.get('/api/media/:roomId', async (req, res) => {
+    try {
+        const media = await Media.find({ roomId: req.params.roomId }).sort({ mediaNumber: 1 }).lean();
+        res.json({ media });
+    } catch (err) {
+        res.status(500).json({ message: 'Media list failed' });
     }
 });
 
 // Connect to MongoDB and Start Server
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = "mongodb+srv://abrar102022916206_db_user:mpe6AcxuaP0oIr8r@cluster0.a4015aj.mongodb.net/?appName=Cluster0";
+const MONGO_URI = process.env.MONGO_URI;
 
-if (!MONGO_URI) {
-    throw new Error('MONGO_URI is missing from .env');
+if (!MONGO_URI || !process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new Error('MONGO_URI and Cloudinary credentials must be configured in .env');
 }
 
 mongoose.connect(MONGO_URI)

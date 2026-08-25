@@ -5,57 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Show room media</title>
     <style>
-        :root { --ink:#17212f; --muted:#687486; --line:#dce3ea; --accent:#e85d3f; }
-        * { box-sizing:border-box; }
-        body { min-height:100vh; margin:0; padding:24px; display:grid; place-items:center; color:var(--ink); background:linear-gradient(135deg,#f3f7fa,#e8eef4); font-family:Georgia,"Times New Roman",serif; }
-        main { width:min(100%,720px); padding:42px; background:#fff; border:1px solid rgba(23,33,47,.08); border-radius:8px; box-shadow:0 18px 50px rgba(23,33,47,.12); }
-        .eyebrow { margin:0 0 10px; color:var(--accent); font:700 .75rem/1.2 Arial,sans-serif; letter-spacing:.12em; text-transform:uppercase; }
-        h1 { margin:0 0 8px; font-size:clamp(2.2rem,7vw,3.4rem); line-height:1; }
-        .intro { margin:0 0 28px; color:var(--muted); font:1rem/1.6 Arial,sans-serif; }
-        form { display:flex; gap:12px; align-items:end; }
-        label { flex:1; display:grid; gap:8px; font:700 .9rem/1.2 Arial,sans-serif; }
-        input { width:100%; min-height:48px; padding:12px 14px; border:1px solid var(--line); border-radius:4px; font:1rem Arial,sans-serif; }
-        button { min-height:48px; padding:0 22px; color:#fff; background:var(--accent); border:0; border-radius:4px; cursor:pointer; font:700 .95rem Arial,sans-serif; }
-        #status { color:#c8472e; font:.9rem/1.4 Arial,sans-serif; }
-        #media-output img, #media-output video, #media-output audio { display:block; width:100%; max-height:70vh; margin-top:24px; border-radius:4px; background:#17212f; }
-        #media-output audio { background:transparent; }
-        @media (max-width:480px) { main { padding:30px 22px; } form { display:grid; align-items:stretch; } }
+        :root { --ink: #18212f; --muted: #657184; --line: #d9e0e8; --accent: #e85d3f; }
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; margin: 0; padding: 40px 24px; color: var(--ink); background: linear-gradient(135deg, #f4f7fb, #e9f0f6); font-family: Georgia, "Times New Roman", serif; }
+        main { width: min(100%, 760px); margin: 0 auto; }
+        .eyebrow { margin: 0 0 10px; color: var(--accent); font: 700 .75rem/1.2 Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+        h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3rem); line-height: 1; }
+        .intro { margin: 0 0 28px; color: var(--muted); font: 1rem/1.6 Arial, sans-serif; }
+        form { display: flex; gap: 12px; margin-bottom: 24px; }
+        label { flex: 1; display: grid; gap: 8px; font: 700 .9rem/1.2 Arial, sans-serif; }
+        input { width: 100%; min-height: 48px; padding: 12px 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; font: 1rem Arial, sans-serif; }
+        button { min-width: 120px; align-self: end; min-height: 48px; color: #fff; background: var(--accent); border: 0; border-radius: 4px; cursor: pointer; font: 700 .95rem Arial, sans-serif; }
+        #status { min-height: 1.4em; color: var(--muted); font: .9rem Arial, sans-serif; }
+        #media-output img, #media-output video { display: block; width: 100%; max-height: 70vh; object-fit: contain; background: #18212f; border-radius: 4px; }
+        @media (max-width: 520px) { body { padding: 28px 18px; } form { display: grid; } button { width: 100%; } }
     </style>
 </head>
 <body>
     <main>
-        <p class="eyebrow">Room media viewer</p>
-        <h1>Show an asset</h1>
-        <p class="intro">Room: <strong id="room-name"></strong></p>
+        <p class="eyebrow">NPL Season 05</p>
+        <h1>Room media</h1>
+        <p class="intro">Enter the number used in the filename to show that room's image or video.</p>
         <form id="show-form">
-            <label for="media-number">Media number <input id="media-number" type="number" min="1" step="1" required></label>
+            <label for="room-id">Room ID<input id="room-id" type="text" required></label>
+            <label for="media-number">File number<input id="media-number" type="number" min="0" step="1" required></label>
             <button type="submit">Show media</button>
         </form>
         <p id="status" role="status"></p>
         <div id="media-output"></div>
     </main>
     <script>
-        const roomId = sessionStorage.getItem('currentActiveId');
+        const roomInput = document.getElementById('room-id');
+        const numberInput = document.getElementById('media-number');
         const status = document.getElementById('status');
-        document.getElementById('room-name').textContent = roomId || 'not selected';
+        const output = document.getElementById('media-output');
+        roomInput.value = sessionStorage.getItem('currentActiveId') || '';
+
         document.getElementById('show-form').addEventListener('submit', async function (event) {
             event.preventDefault();
-            const number = Number(document.getElementById('media-number').value);
-            if (!roomId) { status.textContent = 'Please log in to a room first.'; return; }
-            if (!Number.isInteger(number) || number < 1) return;
+            output.replaceChildren();
             status.textContent = 'Loading...';
-            document.getElementById('media-output').replaceChildren();
             try {
-                const response = await fetch(`/api/tournament/${encodeURIComponent(roomId)}/media/${number}`);
-                const media = await response.json();
-                if (!response.ok) throw new Error(media.message || 'Media not found');
-                const element = document.createElement(media.resourceType === 'image' ? 'img' : media.resourceType === 'video' ? 'video' : 'audio');
+                const response = await fetch('/api/media/' + encodeURIComponent(roomInput.value.trim()) + '/' + numberInput.value);
+                const data = await response.json();
+                if (!response.ok) { status.textContent = data.message || 'Media not found'; return; }
+                const media = data.media;
+                const element = document.createElement(media.resourceType === 'video' ? 'video' : 'img');
                 element.src = media.url;
-                element.controls = media.resourceType !== 'image';
+                element.controls = media.resourceType === 'video';
                 element.alt = media.originalName;
-                document.getElementById('media-output').appendChild(element);
+                if (media.resourceType === 'video') element.preload = 'metadata';
+                output.appendChild(element);
                 status.textContent = media.originalName;
-            } catch (error) { status.textContent = error.message; }
+            } catch (error) { status.textContent = 'Server connection error.'; }
         });
     </script>
 </body>

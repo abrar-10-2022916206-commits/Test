@@ -5,70 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Room media upload</title>
     <style>
-        :root { --ink:#17212f; --muted:#687486; --line:#dce3ea; --accent:#e85d3f; }
-        * { box-sizing:border-box; }
-        body { min-height:100vh; margin:0; padding:24px; display:grid; place-items:center; color:var(--ink); background:linear-gradient(135deg,#f3f7fa,#e8eef4); font-family:Georgia,"Times New Roman",serif; }
-        main { width:min(100%,620px); padding:42px; background:#fff; border:1px solid rgba(23,33,47,.08); border-radius:8px; box-shadow:0 18px 50px rgba(23,33,47,.12); }
-        .eyebrow { margin:0 0 10px; color:var(--accent); font:700 .75rem/1.2 Arial,sans-serif; letter-spacing:.12em; text-transform:uppercase; }
-        h1 { margin:0 0 8px; font-size:clamp(2.2rem,7vw,3.4rem); line-height:1; }
-        .intro { margin:0 0 28px; color:var(--muted); font:1rem/1.6 Arial,sans-serif; }
-        form { display:grid; gap:18px; }
-        label { display:grid; gap:8px; font:700 .9rem/1.2 Arial,sans-serif; }
-        input { width:100%; min-height:48px; padding:12px 14px; color:var(--ink); background:#fbfcfe; border:1px solid var(--line); border-radius:4px; font:1rem Arial,sans-serif; }
-        button { min-height:50px; color:#fff; background:var(--accent); border:0; border-radius:4px; cursor:pointer; font:700 .95rem Arial,sans-serif; }
-        button:hover { background:#c8472e; }
-        #status { min-height:1.4em; margin:4px 0 0; color:#c8472e; font:.9rem/1.4 Arial,sans-serif; }
-        @media (max-width:480px) { main { padding:30px 22px; } }
+        :root { --ink: #18212f; --muted: #657184; --line: #d9e0e8; --accent: #e85d3f; --surface: #fff; }
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; color: var(--ink); background: linear-gradient(135deg, #f4f7fb, #e9f0f6); font-family: Georgia, "Times New Roman", serif; }
+        main { width: min(100%, 560px); padding: 40px; background: var(--surface); border: 1px solid rgba(24, 33, 47, .08); border-radius: 8px; box-shadow: 0 18px 50px rgba(24, 33, 47, .12); }
+        .eyebrow { margin: 0 0 10px; color: var(--accent); font: 700 .75rem/1.2 Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+        h1 { margin: 0 0 8px; font-size: clamp(2rem, 6vw, 3rem); line-height: 1; }
+        .intro { margin: 0 0 28px; color: var(--muted); font: 1rem/1.6 Arial, sans-serif; }
+        form { display: grid; gap: 18px; }
+        label { display: grid; gap: 8px; font: 700 .9rem/1.2 Arial, sans-serif; }
+        input { width: 100%; min-height: 48px; padding: 12px 14px; color: var(--ink); background: #fbfcfe; border: 1px solid var(--line); border-radius: 4px; font: 1rem Arial, sans-serif; }
+        button { min-height: 50px; color: #fff; background: var(--accent); border: 0; border-radius: 4px; cursor: pointer; font: 700 .95rem Arial, sans-serif; }
+        button:hover { background: #c8462c; }
+        #status { min-height: 1.4em; margin: 4px 0 0; color: var(--muted); font: .9rem/1.4 Arial, sans-serif; }
+        @media (max-width: 480px) { main { padding: 28px 22px; } }
     </style>
 </head>
 <body>
     <main>
-        <p class="eyebrow">Room media desk</p>
-        <h1>Upload an asset</h1>
-        <p class="intro">Room: <strong id="room-name"></strong>. Use a number that viewers can enter later.</p>
+        <p class="eyebrow">NPL Season 05</p>
+        <h1>Upload room media</h1>
+        <p class="intro">Choose a file named like <strong>12.png</strong> or <strong>12.mp4</strong>. Uploading the same number replaces it.</p>
         <form id="upload-form">
-            <label for="media-number">Media number <input id="media-number" type="number" min="1" step="1" required></label>
-            <label for="media-file">Image, video, or audio file <input id="media-file" type="file" accept="image/*,video/*,audio/*" required></label>
-            <button type="submit">Upload to this room</button>
+            <label for="room-id">Room ID<input id="room-id" name="roomId" type="text" required></label>
+            <label for="media-file">Image or video<input id="media-file" name="media" type="file" accept="image/*,video/*" required></label>
+            <button type="submit">Upload media</button>
             <p id="status" role="status"></p>
         </form>
     </main>
     <script>
-        const roomId = sessionStorage.getItem('currentActiveId');
-        const cloudName = 'ny0x5qas';
-        const uploadPreset = 'Auction';
+        const roomInput = document.getElementById('room-id');
+        const form = document.getElementById('upload-form');
         const status = document.getElementById('status');
-        document.getElementById('room-name').textContent = roomId || 'not selected';
+        roomInput.value = sessionStorage.getItem('currentActiveId') || '';
 
-        document.getElementById('upload-form').addEventListener('submit', async function (event) {
+        form.addEventListener('submit', async function (event) {
             event.preventDefault();
-            if (!roomId) { status.textContent = 'Please log in to an admin room first.'; return; }
-            const number = Number(document.getElementById('media-number').value);
             const file = document.getElementById('media-file').files[0];
-            if (!Number.isInteger(number) || number < 1 || !file) return;
-            const filenamePattern = new RegExp(`^${number}\\.(png|jpe?g|gif|webp|mp4|webm|mov|mp3|wav)$`, 'i');
-            if (!filenamePattern.test(file.name)) {
-                status.textContent = `Choose a file named ${number}.png, ${number}.mp3, or another supported media extension.`;
-                return;
-            }
+            const formData = new FormData();
+            formData.append('media', file);
             status.textContent = 'Uploading...';
             try {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('upload_preset', uploadPreset);
-                formData.append('folder', `rooms/${roomId}`);
-                const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, { method:'POST', body:formData });
-                const uploaded = await uploadResponse.json();
-                if (!uploadResponse.ok) throw new Error(uploaded.error?.message || 'Cloudinary upload failed');
-                const saveResponse = await fetch(`/api/tournament/${encodeURIComponent(roomId)}/media/${number}`, {
-                    method:'PUT', headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({ url:uploaded.secure_url, resourceType:uploaded.resource_type, originalName:file.name })
-                });
-                const saved = await saveResponse.json();
-                if (!saveResponse.ok) throw new Error(saved.message || 'Could not save media record');
-                status.textContent = `Saved as number ${number}.`;
-                event.currentTarget.reset();
-            } catch (error) { status.textContent = error.message; }
+                const response = await fetch('/api/media/' + encodeURIComponent(roomInput.value.trim()), { method: 'POST', body: formData });
+                const data = await response.json();
+                status.textContent = response.ok ? 'Uploaded ' + data.media.originalName : (data.message || 'Upload failed');
+                if (response.ok) form.reset();
+            } catch (error) { status.textContent = 'Server connection error.'; }
         });
     </script>
 </body>

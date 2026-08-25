@@ -20,10 +20,11 @@
   },
   "homepage": "https://github.com/abrar-10-2022916206-commits/Test#readme",
   "dependencies": {
-    "cloudinary": "^2.7.0",
+    "cloudinary": "^2.10.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mongoose": "^9.9.3"
+    "mongoose": "^9.9.3",
+    "multer": "^2.2.0"
   }
 }
