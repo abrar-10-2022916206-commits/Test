@@ -42,13 +42,16 @@
         form.addEventListener('submit', async function (event) {
             event.preventDefault();
             const file = document.getElementById('media-file').files[0];
+            const roomId = roomInput.value.trim();
+            if (!roomId) { status.textContent = 'Enter a Room ID first.'; return; }
             const formData = new FormData();
             formData.append('media', file);
             status.textContent = 'Uploading...';
             try {
-                const response = await fetch('/api/media/' + encodeURIComponent(roomInput.value.trim()), { method: 'POST', body: formData });
+                const response = await fetch('/api/media/' + encodeURIComponent(roomId), { method: 'POST', body: formData });
                 const data = await response.json();
                 status.textContent = response.ok ? 'Uploaded ' + data.media.originalName : (data.message || 'Upload failed');
+                if (response.ok) sessionStorage.setItem('currentActiveId', roomId);
                 if (response.ok) form.reset();
             } catch (error) { status.textContent = 'Server connection error.'; }
         });

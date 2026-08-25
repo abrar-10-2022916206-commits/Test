@@ -39,14 +39,18 @@
         const numberInput = document.getElementById('media-number');
         const status = document.getElementById('status');
         const output = document.getElementById('media-output');
-        roomInput.value = sessionStorage.getItem('currentActiveId') || '';
+        const queryRoomId = new URLSearchParams(window.location.search).get('roomId');
+        roomInput.value = queryRoomId || sessionStorage.getItem('currentActiveId') || '';
 
-        document.getElementById('show-form').addEventListener('submit', async function (event) {
-            event.preventDefault();
+        async function showMedia() {
+            const roomId = roomInput.value.trim();
+            const mediaNumber = numberInput.value;
+            if (!roomId || !mediaNumber) { status.textContent = 'Enter a Room ID and file number.'; return; }
+
             output.replaceChildren();
             status.textContent = 'Loading...';
             try {
-                const response = await fetch('/api/media/' + encodeURIComponent(roomInput.value.trim()) + '/' + numberInput.value);
+                const response = await fetch('/api/media/' + encodeURIComponent(roomId) + '/' + mediaNumber);
                 const data = await response.json();
                 if (!response.ok) { status.textContent = data.message || 'Media not found'; return; }
                 const media = data.media;
@@ -55,9 +59,18 @@
                 element.controls = media.resourceType === 'video';
                 element.alt = media.originalName;
                 if (media.resourceType === 'video') element.preload = 'metadata';
+                element.addEventListener('error', function () {
+                    status.textContent = 'Media was found, but Cloudinary could not load it.';
+                });
                 output.appendChild(element);
                 status.textContent = media.originalName;
             } catch (error) { status.textContent = 'Server connection error.'; }
+        }
+
+        document.getElementById('show-form').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            sessionStorage.setItem('currentActiveId', roomInput.value.trim());
+            await showMedia();
         });
     </script>
 </body>
