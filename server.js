@@ -137,25 +137,26 @@ app.put('/api/tournament/:id', async (req, res) => {
 });
 
 // 5. Upload or replace numbered room media
-app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
+app.post('/api/media/:roomId', upload.any(), async (req, res) => {
     try {
-        if (!req.file) {
-            console.error('Media upload received no file. Fields:', Object.keys(req.body || {}));
+        const file = (req.files || [])[0];
+        if (!file) {
+            console.error('Media upload received no file. Content-Type:', req.headers['content-type'], 'Fields:', Object.keys(req.body || {}));
             return res.status(400).json({ message: 'Choose an image or video file' });
         }
 
-        const match = req.file.originalname.match(/^(\d+)\.[^.]+$/i);
+        const match = file.originalname.match(/^(\d+)\.[^.]+$/i);
         if (!match) {
             return res.status(400).json({ message: 'Filename must be a number, for example 12.png or 12.mp4' });
         }
 
         const mediaNumber = Number(match[1]);
-        const resourceType = req.file.mimetype.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv)$/i.test(req.file.originalname)
+        const resourceType = file.mimetype.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv)$/i.test(file.originalname)
             ? 'video'
             : 'image';
         const roomId = req.params.roomId.trim();
         const folder = `npl-season-05/${roomId}`;
-        const result = await uploadToCloudinary(req.file, folder, mediaNumber, resourceType);
+        const result = await uploadToCloudinary(file, folder, mediaNumber, resourceType);
         console.log(`Cloudinary upload complete: ${result.public_id}`);
         const media = await Media.findOneAndUpdate(
             { roomId, mediaNumber },
@@ -165,7 +166,7 @@ app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
                 publicId: result.public_id,
                 resourceType,
                 format: result.format,
-                originalName: req.file.originalname,
+                originalName: file.originalname,
                 url: result.secure_url
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }

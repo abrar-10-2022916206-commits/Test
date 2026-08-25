@@ -50,6 +50,8 @@
             const roomId = roomInput.value.trim();
             if (!roomId) { status.textContent = 'Enter a Room ID first.'; return; }
             if (!file) { status.textContent = 'Choose a file before clicking Upload media.'; fileInput.focus(); return; }
+            if (file.size === 0) { status.textContent = 'The selected file is empty.'; return; }
+            status.textContent = 'Uploading ' + file.name + ' (' + file.size + ' bytes)...';
             const formData = new FormData();
             formData.append('media', file, file.name);
             status.textContent = 'Uploading...';
