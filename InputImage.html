@@ -51,7 +51,7 @@
             if (!roomId) { status.textContent = 'Enter a Room ID first.'; return; }
             if (!file) { status.textContent = 'Choose a file before clicking Upload media.'; fileInput.focus(); return; }
             const formData = new FormData();
-            formData.append('media', file);
+            formData.append('media', file, file.name);
             status.textContent = 'Uploading...';
             try {
                 const response = await fetch('/api/media/' + encodeURIComponent(roomId), { method: 'POST', body: formData });

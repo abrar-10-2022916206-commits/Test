@@ -139,7 +139,10 @@ app.put('/api/tournament/:id', async (req, res) => {
 // 5. Upload or replace numbered room media
 app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ message: 'Choose an image or video file' });
+        if (!req.file) {
+            console.error('Media upload received no file. Fields:', Object.keys(req.body || {}));
+            return res.status(400).json({ message: 'Choose an image or video file' });
+        }
 
         const match = req.file.originalname.match(/^(\d+)\.[^.]+$/i);
         if (!match) {
