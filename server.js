@@ -150,12 +150,13 @@ app.post('/api/media/:roomId', upload.single('media'), async (req, res) => {
         const resourceType = req.file.mimetype.startsWith('video/') || /\.(mp4|webm|mov|avi|mkv)$/i.test(req.file.originalname)
             ? 'video'
             : 'image';
-        const folder = `npl-season-05/${req.params.roomId}`;
+        const roomId = req.params.roomId.trim();
+        const folder = `npl-season-05/${roomId}`;
         const result = await uploadToCloudinary(req.file, folder, mediaNumber, resourceType);
         const media = await Media.findOneAndUpdate(
-            { roomId: req.params.roomId, mediaNumber },
+            { roomId, mediaNumber },
             {
-                roomId: req.params.roomId,
+                roomId,
                 mediaNumber,
                 publicId: result.public_id,
                 resourceType,
@@ -181,8 +182,16 @@ app.get('/api/media/:roomId/:mediaNumber', async (req, res) => {
             return res.status(400).json({ message: 'Media number must be a non-negative integer' });
         }
 
-        const media = await Media.findOne({ roomId: req.params.roomId, mediaNumber }).lean();
-        if (!media) return res.status(404).json({ message: 'No media found for that number in this room' });
+        const roomId = req.params.roomId.trim();
+        const media = await Media.findOne({ roomId, mediaNumber }).lean();
+        if (!media) {
+            const available = await Media.find({ roomId }).sort({ mediaNumber: 1 }).select('mediaNumber originalName -_id').lean();
+            return res.status(404).json({
+                message: available.length
+                    ? `No media found for ${mediaNumber}. Available numbers: ${available.map(item => item.mediaNumber).join(', ')}`
+                    : `No media has been uploaded for room "${roomId}"`
+            });
+        }
         res.json({ media });
     } catch (err) {
         res.status(500).json({ message: 'Media lookup failed' });
